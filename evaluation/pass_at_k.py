@@ -185,9 +185,13 @@ def evaluate_pass_at_k(
 
     print(f"Evaluating on {len(test_tasks)} tasks...")
 
-    # Prepare prompts
-    prompts = [f"Write a Python function to solve the following problem:\n\n{task['prompt']}"
-               for task in test_tasks]
+    # Prepare prompts using UNIFIED format (same as teacher and RL)
+    from utils.prompts import get_unified_prompt
+
+    prompts = [
+        get_unified_prompt(task['prompt'], dataset_type=task.get('dataset', 'mbpp'))
+        for task in test_tasks
+    ]
 
     # Generate samples
     print(f"Generating {num_samples_per_task} samples per task...")

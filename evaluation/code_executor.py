@@ -25,18 +25,33 @@ def extract_function_from_code(code: str) -> Optional[str]:
     """
     Extract the main function from generated code
 
+    Handles:
+    - Code with <think> blocks
+    - Code in markdown ```python ... ```
+    - Plain code
+
     Args:
-        code: Generated code string
+        code: Generated code string (may include thinking and markdown)
 
     Returns:
         Cleaned code or None if parsing fails
     """
     try:
-        # Remove markdown code blocks if present
-        if "```python" in code:
-            code = code.split("```python")[1].split("```")[0]
-        elif "```" in code:
-            code = code.split("```")[1].split("```")[0]
+        # Import here to avoid circular dependency
+        from utils.thinking_extraction import extract_thinking_and_code_unified
+
+        # First, extract code using unified extraction
+        # This handles <think> blocks and markdown
+        parsed = extract_thinking_and_code_unified(code)
+
+        if parsed["code"]:
+            code = parsed["code"]
+        else:
+            # Fallback: try basic markdown extraction
+            if "```python" in code:
+                code = code.split("```python")[1].split("```")[0]
+            elif "```" in code:
+                code = code.split("```")[1].split("```")[0]
 
         # Try to parse the code
         tree = ast.parse(code)

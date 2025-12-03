@@ -460,11 +460,14 @@ class GRPOTrainer:
             for batch_idx in tqdm(range(0, len(train_data), batch_size), desc="Training"):
                 batch_tasks = train_data[batch_idx:batch_idx + batch_size]
 
-                # Generate responses
+                # Generate responses using UNIFIED prompt format
+                # Import here to avoid circular dependency
+                from utils.prompts import get_unified_prompt
+
                 queries = [
                     format_prompt_for_chat(
                         self.tokenizer,
-                        f"Write a Python function to solve the following problem:\n\n{task['prompt']}"
+                        get_unified_prompt(task['prompt'], dataset_type=task.get('dataset', 'mbpp'))
                     )
                     for task in batch_tasks
                 ]

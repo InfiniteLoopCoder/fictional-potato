@@ -1,9 +1,21 @@
 """
 Dual-Source composite objective: GRPO + Teacher-SFT + Self-SFT losses
+
+IMPORTANT: SFT losses require properly constructed labels where:
+- Prompt tokens have label = -100 (ignored in loss)
+- Response tokens have label = token_id (used in loss)
+
+This ensures we only compute loss on the assistant's response, not the user's prompt.
 """
 import torch
 import torch.nn.functional as F
 from typing import Dict, List, Optional, Tuple
+import sys
+import os
+
+# Add utils to path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.sft_data import prepare_teacher_sft_batch, prepare_self_sft_batch
 
 
 def compute_sft_loss(
@@ -47,31 +59,54 @@ def compute_sft_loss(
 
 def compute_teacher_sft_loss(
     model,
-    teacher_input_ids: torch.Tensor,
-    teacher_attention_mask: torch.Tensor,
-    teacher_labels: torch.Tensor,
+    teacher_examples: List[Dict],
+    tokenizer,
+    include_thinking: bool = True,
+    max_length: int = 2048,
+    device: str = "cuda",
 ) -> torch.Tensor:
     """
     Compute Teacher-SFT loss from synthetic reasoning traces
 
+    This properly constructs labels where:
+    - User prompt tokens are masked with -100 (no loss)
+    - Assistant response tokens use actual token IDs (compute loss)
+
     Args:
         model: Student model
-        teacher_input_ids: Input IDs from teacher traces
-        teacher_attention_mask: Attention mask
-        teacher_labels: Target labels from teacher
+        teacher_examples: List of teacher trace dicts with 'prompt', 'thinking', 'code'
+        tokenizer: Tokenizer
+        include_thinking: Whether to include thinking blocks in SFT target
+        max_length: Maximum sequence length
+        device: Device to use
 
     Returns:
         Teacher-SFT loss
     """
-    outputs = model(
-        input_ids=teacher_input_ids,
-        attention_mask=teacher_attention_mask,
+    # Prepare batch with proper labels
+    batch = prepare_teacher_sft_batch(
+        teacher_examples=teacher_examples,
+        tokenizer=tokenizer,
+        max_length=max_length,
+        include_thinking=include_thinking,
     )
 
+    # Move to device
+    input_ids = batch["input_ids"].to(device)
+    attention_mask = batch["attention_mask"].to(device)
+    labels = batch["labels"].to(device)
+
+    # Forward pass
+    outputs = model(
+        input_ids=input_ids,
+        attention_mask=attention_mask,
+    )
+
+    # Compute SFT loss (CrossEntropyLoss handles -100 labels automatically)
     loss = compute_sft_loss(
         logits=outputs.logits,
-        labels=teacher_labels,
-        attention_mask=teacher_attention_mask,
+        labels=labels,
+        attention_mask=attention_mask,
     )
 
     return loss
@@ -81,20 +116,31 @@ def compute_self_sft_loss(
     model,
     successful_samples: List[Dict],
     tokenizer,
+    prompts: List[str],
     top_k: int = 2,
     min_reward: float = 0.8,
     max_length: int = 1024,
+    device: str = "cuda",
 ) -> Optional[torch.Tensor]:
     """
     Compute Self-SFT loss from best successful samples
 
+    This properly constructs labels where:
+    - User prompt tokens are masked with -100 (no loss)
+    - Generated response tokens use actual token IDs (compute loss)
+
+    IMPORTANT: We only want to compute loss on the model's RESPONSE,
+    not on the original prompt!
+
     Args:
         model: Student model
-        successful_samples: List of successful sample dicts with 'input_ids', 'reward'
+        successful_samples: List of dicts with 'prompt', 'response', 'reward'
         tokenizer: Tokenizer
+        prompts: Original prompts (for reference, can be empty)
         top_k: Number of top samples to use
         min_reward: Minimum reward threshold
         max_length: Maximum sequence length
+        device: Device to use
 
     Returns:
         Self-SFT loss or None if no successful samples
@@ -102,60 +148,31 @@ def compute_self_sft_loss(
     if not successful_samples:
         return None
 
-    # Filter samples by minimum reward
-    filtered_samples = [s for s in successful_samples if s['reward'] >= min_reward]
-
-    if not filtered_samples:
-        return None
-
-    # Sort by reward and select top-k
-    filtered_samples.sort(key=lambda x: x['reward'], reverse=True)
-    top_samples = filtered_samples[:top_k]
-
-    if not top_samples:
-        return None
-
-    # Prepare batch
-    input_ids_list = []
-    attention_mask_list = []
-
-    for sample in top_samples:
-        input_ids = sample['input_ids']
-        attention_mask = sample.get('attention_mask')
-
-        if attention_mask is None:
-            attention_mask = torch.ones_like(input_ids)
-
-        # Truncate if needed
-        if input_ids.shape[-1] > max_length:
-            input_ids = input_ids[..., :max_length]
-            attention_mask = attention_mask[..., :max_length]
-
-        input_ids_list.append(input_ids.squeeze())
-        attention_mask_list.append(attention_mask.squeeze())
-
-    # Pad sequences
-    input_ids = torch.nn.utils.rnn.pad_sequence(
-        input_ids_list,
-        batch_first=True,
-        padding_value=tokenizer.pad_token_id
-    )
-    attention_mask = torch.nn.utils.rnn.pad_sequence(
-        attention_mask_list,
-        batch_first=True,
-        padding_value=0
+    # Prepare batch with proper labels
+    batch = prepare_self_sft_batch(
+        successful_samples=successful_samples,
+        tokenizer=tokenizer,
+        prompts=prompts,
+        top_k=top_k,
+        min_reward=min_reward,
+        max_length=max_length,
     )
 
-    # Create labels (same as input_ids for SFT)
-    labels = input_ids.clone()
-    labels[labels == tokenizer.pad_token_id] = -100
+    if batch is None:
+        return None
 
-    # Compute SFT loss
+    # Move to device
+    input_ids = batch["input_ids"].to(device)
+    attention_mask = batch["attention_mask"].to(device)
+    labels = batch["labels"].to(device)
+
+    # Forward pass
     outputs = model(
         input_ids=input_ids,
         attention_mask=attention_mask,
     )
 
+    # Compute SFT loss (CrossEntropyLoss handles -100 labels automatically)
     loss = compute_sft_loss(
         logits=outputs.logits,
         labels=labels,
