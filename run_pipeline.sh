@@ -58,7 +58,7 @@ check_teacher() {
 # Stage 1: Data Preparation
 run_data_stage() {
     log "Starting Stage 1: Data Preparation"
-    if python main.py --stage data --output_dir "$OUTPUT_DIR" > "$LOG_DIR/stage1_data.log" 2>&1; then
+    if python phase1_prepare_data.py > "$LOG_DIR/stage1_data.log" 2>&1; then
         log "✓ Stage 1 complete"
         return 0
     else
@@ -71,7 +71,7 @@ run_data_stage() {
 # Stage 2: Teacher Synthesis
 run_synthesis_stage() {
     log "Starting Stage 2: Teacher Synthesis"
-    if python main.py --stage synthesis --output_dir "$OUTPUT_DIR" > "$LOG_DIR/stage2_synthesis.log" 2>&1; then
+    if python phase2_generate_teacher_traces.py > "$LOG_DIR/stage2_synthesis.log" 2>&1; then
         log "✓ Stage 2 complete"
         return 0
     else
@@ -84,7 +84,7 @@ run_synthesis_stage() {
 # Stage 3: Training
 run_training_stage() {
     log "Starting Stage 3: GRPO Training"
-    if python main.py --stage train --output_dir "$OUTPUT_DIR" 2>&1 | tee "$LOG_DIR/stage3_training.log"; then
+    if python phase3_train_grpo.py 2>&1 | tee "$LOG_DIR/stage3_training.log"; then
         log "✓ Stage 3 complete"
         return 0
     else
@@ -97,7 +97,7 @@ run_training_stage() {
 # Stage 4: Evaluation
 run_evaluation_stage() {
     log "Starting Stage 4: Evaluation"
-    if python main.py --stage eval --output_dir "$OUTPUT_DIR" 2>&1 | tee "$LOG_DIR/stage4_evaluation.log"; then
+    if python phase4_evaluate.py 2>&1 | tee "$LOG_DIR/stage4_evaluation.log"; then
         log "✓ Stage 4 complete"
         return 0
     else
