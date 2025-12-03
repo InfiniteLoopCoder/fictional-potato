@@ -342,7 +342,7 @@ if __name__ == "__main__":
 
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(
-        "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+        "Qwen/Qwen3-1.7B",
         trust_remote_code=True
     )
 

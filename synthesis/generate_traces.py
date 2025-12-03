@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List, Dict
 from tqdm import tqdm
 
-from teacher_query import TeacherModelClient, create_code_generation_prompt
+from .teacher_query import TeacherModelClient, create_code_generation_prompt
 
 
 def load_training_data(filepath: str) -> List[Dict]:

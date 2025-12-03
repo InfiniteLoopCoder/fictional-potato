@@ -117,7 +117,7 @@ def test_1_student_model_output():
     """测试1: Student模型输出格式 / Test 1: Student model output format"""
     print_header("测试1: Student模型输出 / Test 1: Student Model Output")
 
-    model_name = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+    model_name = "Qwen/Qwen3-1.7B"
 
     try:
         print(f"加载模型 / Loading model: {model_name}")
@@ -369,7 +369,7 @@ def test_4_sft_label_construction():
     try:
         from transformers import AutoTokenizer
         tokenizer = AutoTokenizer.from_pretrained(
-            "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+            "Qwen/Qwen3-1.7B",
             trust_remote_code=True
         )
         if tokenizer.pad_token is None:

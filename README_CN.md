@@ -245,7 +245,7 @@ teacher.max_concurrent_requests = 32  # 并发请求数
 ### Student配置
 
 ```python
-student.model_name = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+student.model_name = "Qwen/Qwen3-1.7B"
 student.torch_dtype = torch.bfloat16
 ```
 

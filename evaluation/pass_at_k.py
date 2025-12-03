@@ -9,7 +9,7 @@ from collections import defaultdict
 from tqdm import tqdm
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from code_executor import execute_code_with_tests_multiprocess
+from .code_executor import execute_code_with_tests_multiprocess
 
 
 def estimate_pass_at_k(

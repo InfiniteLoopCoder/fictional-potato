@@ -176,7 +176,7 @@ def verify_with_transformers():
         print("="*70)
 
         tokenizer = AutoTokenizer.from_pretrained(
-            "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+            "Qwen/Qwen3-1.7B",
             trust_remote_code=True
         )
 

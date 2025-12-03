@@ -25,7 +25,7 @@ class TeacherConfig:
 @dataclass
 class StudentConfig:
     """Configuration for student model"""
-    model_name: str = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+    model_name: str = "Qwen/Qwen3-1.7B"
     load_in_8bit: bool = False
     load_in_4bit: bool = False
     torch_dtype: str = "bfloat16"

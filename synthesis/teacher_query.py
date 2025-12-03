@@ -248,8 +248,8 @@ async def test_teacher_connection(config):
         print("\n✓ Connection successful!")
         print(f"\nResponse preview:")
         if response.thinking:
-            print(f"Thinking: {response.thinking[:200]}...")
-        print(f"Code: {response.response[:200]}...")
+            print(f"Thinking: {response.thinking}...")
+        print(f"Code: {response.response}...")
 
         return True
 
